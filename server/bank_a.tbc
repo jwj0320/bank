@@ -1,0 +1,129 @@
+#include <stdio.h>
+#include <string.h>
+#include <sqlca.h>
+#include <usrinc/atmi.h>
+#include <usrinc/fbuf.h>
+#include "../fdl/info_fdl.h"
+
+#define MAX_ACCOUNT_LEN 1000
+#define OPER_ERROR -1
+#define OPER_SUCCESS 0
+// #define NO_MATCH -2
+#define LOGIC_ERROR -2
+
+int check_account(char *account) 
+{
+    char searched[MAX_ACCOUNT_LEN]={0};
+    EXEC SQL SELECT ID 
+        INTO :searched
+        FROM BANK
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        printf(sqlca.sqlerrm.sqlerrmc);
+        return OPER_ERROR;   
+    }
+    
+    // if(strlen(searched)==0)
+    // {
+    //     return NO_MATCH;
+    // }
+    return OPER_SUCCESS;
+}
+
+int check_balance(char *account)
+{
+    int amount;
+    EXEC SQL SELECT AMOUNT 
+        INTO :amount
+        FROM BANK
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        printf(sqlca.sqlerrm.sqlerrmc);
+        return OPER_ERROR;   
+    }
+    return amount;
+}
+
+int withdraw(char *account, int amount)
+{
+    int ret;
+    ret=check_balance(account);
+    if(ret < 0)
+    {
+        return OPER_ERROR;
+    }
+    else if(ret < amount)
+    {
+        return LOGIC_ERROR;
+    }
+    
+    amount=ret-amount;
+    EXEC SQL UPDATE BANK
+        SET AMOUNT = :amount
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        return OPER_ERROR;   
+    }
+    return OPER_SUCCESS;
+
+}
+
+
+void CHECKACCOUNT(TPSVCINFO *msg)
+{
+    char * data=msg->data;
+    int ret;
+    ret=check_account(data);
+    if(ret==OPER_ERROR)
+    {
+        strcpy(data,"SQL ERROR.");
+        tpreturn(TPFAIL,0,data,0,TPNOFLAGS);
+    }
+    // else if(ret==NO_MATCH)
+    // {
+    //     strcpy(data,"Account Not Found.");
+    //     tpreturn(TPFAIL,0,data,0,TPNOFLAGS);
+    // }
+    strcpy(data,"Account checked.");
+    tpreturn(TPSUCCESS,0,data,0,TPNOFLAGS);
+}
+
+void WITHDRAW(TPSVCINFO *msg)
+{
+    FBUF *data=msg->data;
+    char *sendbuf;
+    char account[MAX_ACCOUNT_LEN];
+    int amount;
+
+    int ret;
+
+    sendbuf=tpalloc("STRING",NULL,0);
+
+    fbget(data,AMOUNT,(char *)&amount,0);
+    fbget(data,FROM,account,0);
+
+    printf("withdraw %d from %s\n",amount,account);
+    ret=withdraw(account,amount);
+    if (ret==OPER_ERROR)
+    {
+        strcpy(sendbuf,"withdraw operation error.");
+        tpreturn(TPFAIL,0,sendbuf,0,TPNOFLAGS);
+    }
+    else if (ret==LOGIC_ERROR)
+    {
+        strcpy(sendbuf,"withdraw logic error.");
+        tpreturn(TPFAIL,0,sendbuf,0,TPNOFLAGS);
+    }
+    
+
+    strcpy(sendbuf,"Account checked.");
+    tpreturn(TPSUCCESS,0,sendbuf,0,TPNOFLAGS);
+    
+}
+

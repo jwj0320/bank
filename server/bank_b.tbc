@@ -1,0 +1,158 @@
+#include <stdio.h>
+#include <string.h>
+#include <sqlca.h>
+#include <usrinc/atmi.h>
+#include <usrinc/fbuf.h>
+#include "../fdl/info_fdl.h"
+
+#define MAX_ACCOUNT_LEN 1000
+#define OPER_ERROR -1
+#define OPER_SUCCESS 0
+// #define NO_MATCH -2
+#define LOGIC_ERROR -2
+
+int check_account(char *account) 
+{
+    char searched[MAX_ACCOUNT_LEN]={0};
+    EXEC SQL SELECT ID 
+        INTO :searched
+        FROM BANK
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        return OPER_ERROR;   
+    }
+    
+    // if(strlen(searched)==0)
+    // {
+    //     return NO_MATCH;
+    // }
+    return OPER_SUCCESS;
+}
+
+int check_balance(char *account)
+{
+    int amount;
+    EXEC SQL SELECT AMOUNT 
+        INTO :amount
+        FROM BANK
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        return OPER_ERROR;   
+    }
+    return amount;
+}
+
+
+int deposit(char *account, int amount)
+{
+    int ret;
+    ret=check_balance(account);
+    amount=ret+amount;
+    EXEC SQL UPDATE BANK
+        SET AMOUNT = :amount
+        WHERE ID=:account;
+
+    if(sqlca.sqlcode)
+    {
+        return OPER_ERROR;   
+    }
+    return OPER_SUCCESS;
+}
+
+void CHECKACCOUNT(TPSVCINFO *msg)
+{
+    char * data=msg->data;
+    int ret;
+    ret=check_account(data);
+    if(ret==OPER_ERROR)
+    {
+        strcpy(data,"SQL ERROR.");
+        tpreturn(TPFAIL,0,data,0,TPNOFLAGS);
+    }
+    // else if(ret==NO_MATCH)
+    // {
+    //     strcpy(data,"Account Not Found.");
+    //     tpreturn(TPFAIL,0,data,0,TPNOFLAGS);
+    // }
+    strcpy(data,"Account checked.");
+    tpreturn(TPSUCCESS,0,data,0,TPNOFLAGS);
+}
+
+
+void DEPOSIT(TPSVCINFO *msg)
+{
+    FBUF *data=msg->data;
+    char *sendbuf;
+    char account[MAX_ACCOUNT_LEN];
+    int amount;
+
+    int ret;
+
+    sendbuf=tpalloc("STRING",NULL,0);
+
+    fbget(data,AMOUNT,(char *)&amount,0);
+    fbget(data,TO,account,0);
+
+    printf("Deposit %d to %s\n",amount,account);
+    ret=deposit(account,amount);
+    if (ret==OPER_ERROR)
+    {
+        strcpy(sendbuf,"deposit operation error.");
+        tpreturn(TPFAIL,0,sendbuf,0,TPNOFLAGS);
+    }
+
+    strcpy(sendbuf,"Account checked.");
+    tpreturn(TPSUCCESS,0,sendbuf,0,TPNOFLAGS);
+}
+
+
+// void TRANSFER(TPSVCINFO *msg)
+// {
+//     FBUF *data=msg->data;
+
+//     int ret;
+//     char* sendbuf;
+//     int amount;
+//     char account_from[MAX_ACCOUNT_LEN];
+//     char account_to[MAX_ACCOUNT_LEN];
+
+//     fbget(data,AMOUNT,(char *)&amount,0);
+//     fbget(data,FROM,account_from,0);
+//     fbget(data,TO,account_to,0);
+    
+//     printf("Transfer %d from %s to %s.\n",amount,account_from,account_to);
+
+//     sendbuf=tpalloc("STRING",NULL,0);
+
+//     ret=check_account(account_from);
+//     printf("%d\n",ret);
+//     ret=check_account(account_to);
+//     printf("%d\n",ret);
+
+//     ret=check_balance(account_from);
+//     if(ret < 0)
+//     {
+//         strcpy(sendbuf,"check_balance failed.");
+//         tpreturn(TPFAIL,0, sendbuf,0,TPNOFLAGS);
+//     }
+//     else if(ret < amount)
+//     {
+//         sprintf(sendbuf,"Your balance is insufficient.\nbalance: %d\n",ret);
+//         tpreturn(TPFAIL,0, sendbuf,0,TPNOFLAGS);
+//     }
+    
+//     ret=withdraw(account_from,amount);
+
+
+//     ret=deposit(account_to,amount);
+
+
+//     strcpy(sendbuf,"test");
+//     tpreturn(TPSUCCESS,0,sendbuf,0,TPNOFLAGS);
+
+
+// }
