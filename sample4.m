@@ -32,6 +32,10 @@ svg1           NODENAME = "tmaxwj", DBNAME = TIBERO,
                OPENINFO = "TIBERO_XA:user=tibero,pwd=tmax,sestm=60,db=tb_fix3",
                TMSNAME  = tms_tbr
 
+svg2           NODENAME = "tmaxwj", DBNAME = TIBERO,
+               OPENINFO = "TIBERO_XA:user=tibero,pwd=tmax,sestm=60,db=tb2",
+               TMSNAME  = tms_tbr
+
 ### MultipleRM STMAX for Oracle ###
 #svg_s1		NODENAME = tmaxwj,
 #		DBNAME = ORACLE,
@@ -69,7 +73,9 @@ svg1           NODENAME = "tmaxwj", DBNAME = TIBERO,
 #svr2            SVGNAME = svg1
 #tabsvr          SVGNAME = svg1
 #odbcsvr         SVGNAME = svg1
-banksvr         SVGNAME = svg1
+#banksvr         SVGNAME = svg1
+bank_a           SVGNAME = svg1
+bank_b           SVGNAME = svg2
 
 #svr3           SVGNAME = svg1
 #svr_ucs        SVGNAME = svg1, SVRTYPE = UCS
@@ -110,10 +116,10 @@ banksvr         SVGNAME = svg1
 
 #SELECTFROMTABLE SVRNAME = odbcsvr
 
-CHECKACCOUNT    SVRNAME = banksvr
+CHECKACCOUNT    SVRNAME = bank_a
 #TRANSFER        SVRNAME = banksvr
-WITHDRAW        SVRNAME = banksvr
-DEPOSIT         SVRNAME = banksvr
+WITHDRAW        SVRNAME = bank_a
+DEPOSIT         SVRNAME = bank_b
 
 
 ### services for fdltest ###
