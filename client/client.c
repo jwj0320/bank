@@ -168,7 +168,8 @@ int main(int argc, char *argv[])
     ret=check_account(account);
     if(ret < 0)
     {
-
+        printf("Operation Error\n");
+        return 0;
     }
 
     while(1)
